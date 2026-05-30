@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "embed"
 	"html/template"
 	"net/http"
 	"os"
@@ -10,9 +11,12 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
+//go:embed index.html
+var indexHTML string
+
 type Counter struct {
 	value int
-	mu sync.Mutex
+	mu    sync.Mutex
 }
 
 func (c *Counter) Increase() {
@@ -21,7 +25,7 @@ func (c *Counter) Increase() {
 	c.mu.Unlock()
 }
 
-func (c *Counter) Dncrease() {
+func (c *Counter) Decrease() {
 	c.mu.Lock()
 	c.value--
 	c.mu.Unlock()
@@ -35,14 +39,15 @@ func (c *Counter) GetValue() int {
 
 func main() {
 	counter := &Counter{}
+	indexTmpl := template.Must(template.New("index.html").Parse(indexHTML))
+
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Get("/", func(w http.ResponseWriter, _ *http.Request) {
-		tmpl, _ := template.ParseFiles("index.html")
 		data := map[string]int{
 			"CounterValue": counter.GetValue(),
 		}
-		tmpl.ExecuteTemplate(w, "index.html", data)
+		_ = indexTmpl.ExecuteTemplate(w, "index.html", data)
 	})
 	r.Post("/increase", func(w http.ResponseWriter, _ *http.Request) {
 		tmplStr := "<div id=\"counter\">{{.CounterValue}}</div>"
@@ -51,21 +56,22 @@ func main() {
 		data := map[string]int{
 			"CounterValue": counter.GetValue(),
 		}
-		tmpl.ExecuteTemplate(w, "counter", data)
+		_ = tmpl.ExecuteTemplate(w, "counter", data)
 	})
 	r.Post("/decrease", func(w http.ResponseWriter, _ *http.Request) {
 		tmplStr := "<div id=\"counter\">{{.CounterValue}}</div>"
 		tmpl := template.Must(template.New("counter").Parse(tmplStr))
-		counter.Dncrease()
+		counter.Decrease()
 		data := map[string]int{
 			"CounterValue": counter.GetValue(),
 		}
-		tmpl.ExecuteTemplate(w, "counter", data)
+		_ = tmpl.ExecuteTemplate(w, "counter", data)
 	})
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
-	http.ListenAndServe("0.0.0.0:"+port, r)
+	if err := http.ListenAndServe("0.0.0.0:"+port, r); err != nil {
+		panic(err)
+	}
 }
-
