@@ -3,6 +3,7 @@ package main
 import (
 	"html/template"
 	"net/http"
+	"os"
 	"sync"
 
 	"github.com/go-chi/chi/v5"
@@ -61,6 +62,10 @@ func main() {
 		}
 		tmpl.ExecuteTemplate(w, "counter", data)
 	})
-	http.ListenAndServe("localhost:3001", r)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	http.ListenAndServe("0.0.0.0:"+port, r)
 }
 
